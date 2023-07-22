@@ -2,7 +2,9 @@ use cogrrs::wgpu::TextureFormat;
 use cogrrs::TextureRes::FullRes;
 use cogrrs::{div_ceil, puffin, CoGr, Encoder, Pipeline, ResourceHandle};
 
-use crate::camera::PrimaryRayGenResults;
+use crate::compute_passes::camera::PrimaryRayGenResults;
+
+use super::{ComputePass, ResourceHandles};
 
 pub struct PrimaryRayCaster {
     normal: ResourceHandle,
@@ -22,8 +24,13 @@ pub struct PrimaryRayCasterResults {
     complexity: ResourceHandle,
 }
 
-impl PrimaryRayCaster {
-    pub fn new(gpu: &mut CoGr) -> Self {
+impl ResourceHandles for PrimaryRayCasterResults {}
+
+impl ComputePass for PrimaryRayCaster {
+    type Inputs = PrimaryRayGenResults;
+    type Outputs = PrimaryRayCasterResults;
+
+    fn new(gpu: &mut CoGr) -> Self {
         let normal = gpu.texture("normal", FullRes, TextureFormat::Rgba8Snorm);
         let depth = gpu.texture("depth", FullRes, TextureFormat::R16Float);
         let material = gpu.texture("material", FullRes, TextureFormat::R8Uint);
@@ -45,17 +52,18 @@ impl PrimaryRayCaster {
         }
     }
 
-    pub fn shoot_rays(&mut self, encoder: &mut Encoder, primary_ray_gen_results: &PrimaryRayGenResults) -> PrimaryRayCasterResults {
+    fn dispatch(&mut self, encoder: &mut Encoder, inputs: &Self::Inputs) -> PrimaryRayCasterResults {
         // use latest camera data to calculate new rays
         puffin::profile_function!();
+
         encoder
             .dispatch_pipeline(
                 &mut self.trace_ray,
                 (div_ceil(encoder.width(), 32), div_ceil(encoder.height(), 32), 1),
                 &[0; 0],
                 &[
-                    &primary_ray_gen_results.primary_ray_data,
-                    &primary_ray_gen_results.camera_gpu,
+                    &inputs.primary_ray_data,
+                    &inputs.camera_gpu,
                     &self.normal,
                     &self.depth,
                     &self.material,
@@ -70,6 +78,14 @@ impl PrimaryRayCaster {
             complexity: self.complexity.clone(),
         }
     }
+
+    fn rebuild(&mut self, _gpu: &mut CoGr) {
+        todo!()
+    }
+
+    fn draw_ui(&mut self, _ui: &mut cogrrs::egui::Ui) {}
+}
+impl PrimaryRayCaster {
     pub fn debug_complexity(&mut self, encoder: &mut Encoder, to_screen: &ResourceHandle) {
         puffin::profile_function!();
         encoder
@@ -77,7 +93,7 @@ impl PrimaryRayCaster {
                 &mut self.debug_complexity,
                 (div_ceil(encoder.width(), 32), div_ceil(encoder.height(), 32), 1),
                 &[0; 0],
-                &[&self.complexity, &to_screen],
+                &[&self.complexity, to_screen],
             )
             .unwrap();
     }
@@ -88,7 +104,7 @@ impl PrimaryRayCaster {
                 &mut self.debug_depth,
                 (div_ceil(encoder.width(), 32), div_ceil(encoder.height(), 32), 1),
                 &[0; 0],
-                &[&self.depth, &to_screen],
+                &[&self.depth, to_screen],
             )
             .unwrap();
     }
@@ -99,7 +115,7 @@ impl PrimaryRayCaster {
                 &mut self.debug_normals,
                 (div_ceil(encoder.width(), 32), div_ceil(encoder.height(), 32), 1),
                 &[0; 0],
-                &[&self.normal, &to_screen],
+                &[&self.normal, to_screen],
             )
             .unwrap();
     }

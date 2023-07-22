@@ -1,4 +1,4 @@
-#include "../camera.hlsl"
+#include "../common/camera.hlsl"
 
 RWTexture2D<unorm float4> primary_ray_direction;
 RWTexture2D<unorm float4> screen_texture;

@@ -1,9 +1,8 @@
-#include "camera.hlsl"
-#include "common.hlsl"
+#include "common/camera.hlsl"
+#include "common/random.hlsl"
 
 RWTexture2D<unorm float4> primary_ray_direction;
 StructuredBuffer<Camera> camera_data;
-
 
 float3 to_world_space(float2 shift, Camera camera){
     float3 position_horizontal = shift.x * camera.direction_side;

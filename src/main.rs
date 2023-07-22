@@ -1,11 +1,10 @@
 use cogrrs::main_loop_run;
 use smol_voxel_world::SmolVoxelWorld;
 
-mod camera;
+mod compute_passes;
 mod constants;
 mod helpers;
 mod key_mapping;
-mod primary_ray_caster;
 mod smol_voxel_world;
 
 pub fn setup_logger() -> Result<(), fern::InitError> {

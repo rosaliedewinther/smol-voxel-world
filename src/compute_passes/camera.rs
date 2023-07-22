@@ -1,10 +1,11 @@
 use std::mem::size_of;
 
 use bytemuck::{Pod, Zeroable};
+use cogrrs::egui::{Slider, Ui};
 use cogrrs::wgpu::TextureFormat;
 use cogrrs::TextureRes::FullRes;
 use cogrrs::{div_ceil, CoGr, Encoder, Input, Pipeline, ResourceHandle};
-use dolly::prelude::{Arm, Position, Smooth, YawPitch};
+use dolly::prelude::{Position, Smooth, YawPitch};
 use dolly::rig::CameraRig;
 use glam::{UVec2, Vec3};
 
@@ -12,6 +13,8 @@ use cogrrs::puffin;
 
 use crate::helpers::bool_to_f32;
 use crate::key_mapping::{MOVE_BACKWARD, MOVE_DOWN, MOVE_FORWARD, MOVE_LEFT, MOVE_RIGHT, MOVE_UP};
+
+use super::{ComputePass, ResourceHandles};
 
 pub struct Camera {
     camera: CameraRig,
@@ -45,8 +48,13 @@ pub struct PrimaryRayGenResults {
     pub camera_gpu: ResourceHandle,
 }
 
-impl Camera {
-    pub fn new(gpu: &mut CoGr) -> Self {
+impl ResourceHandles for PrimaryRayGenResults {}
+
+impl ComputePass for Camera {
+    type Inputs = ();
+    type Outputs = PrimaryRayGenResults;
+
+    fn new(gpu: &mut CoGr) -> Self {
         let camera: CameraRig = CameraRig::builder()
             .with(YawPitch::new().yaw_degrees(45.0).pitch_degrees(-30.0))
             .with(Position::new(Vec3::Y))
@@ -69,24 +77,14 @@ impl Camera {
         }
     }
 
-    pub fn update(&mut self, dt: f32, input: &Input) {
-        // all of these can go from -1 to 1
-        let move_right = bool_to_f32(input.key_pressed(MOVE_RIGHT)) - bool_to_f32(input.key_pressed(MOVE_LEFT));
-        let move_up = bool_to_f32(input.key_pressed(MOVE_UP)) - bool_to_f32(input.key_pressed(MOVE_DOWN));
-        let move_forward = bool_to_f32(input.key_pressed(MOVE_FORWARD)) - bool_to_f32(input.key_pressed(MOVE_BACKWARD));
-
-        let move_vec = self.camera.final_transform.rotation * Vec3::new(-move_right, move_up, -move_forward).clamp_length_max(1.0);
-
-        self.camera
-            .driver_mut::<YawPitch>()
-            .rotate_yaw_pitch(input.mouse_change()[0], -input.mouse_change()[1]);
-        self.camera.driver_mut::<Position>().translate(move_vec * dt * 10.0);
+    fn rebuild(&mut self, _gpu: &mut CoGr) {
+        todo!()
     }
 
-    pub fn generate_rays(&mut self, encoder: &mut Encoder, dt: f32) -> PrimaryRayGenResults {
+    fn dispatch(&mut self, encoder: &mut Encoder, _: &Self::Inputs) -> Self::Outputs {
         puffin::profile_scope!("Generate rays");
+
         self.random_seed += 1;
-        self.camera.update(dt);
         let camera_data = CameraGpu {
             position: self.camera.final_transform.position,
             aperture: self.aperture,
@@ -116,13 +114,34 @@ impl Camera {
         }
     }
 
+    fn draw_ui(&mut self, ui: &mut Ui) {
+        ui.add(Slider::new(&mut self.aperture, 2.8..=220.0).text("Aperture"));
+        ui.add(Slider::new(&mut self.focal_length, 1.7..=5.0).text("Focal length"));
+        ui.add(Slider::new(&mut self.sensor_height, 0.0..=10.0).text("Sensor height"));
+    }
+}
+
+impl Camera {
+    pub fn update(&mut self, input: &Input, dt: f32) {
+        let move_right = bool_to_f32(input.key_pressed(MOVE_RIGHT)) - bool_to_f32(input.key_pressed(MOVE_LEFT));
+        let move_up = bool_to_f32(input.key_pressed(MOVE_UP)) - bool_to_f32(input.key_pressed(MOVE_DOWN));
+        let move_forward = bool_to_f32(input.key_pressed(MOVE_FORWARD)) - bool_to_f32(input.key_pressed(MOVE_BACKWARD));
+
+        let move_vec = self.camera.final_transform.rotation * Vec3::new(-move_right, move_up, -move_forward).clamp_length_max(1.0);
+
+        self.camera
+            .driver_mut::<YawPitch>()
+            .rotate_yaw_pitch(input.mouse_change()[0], -input.mouse_change()[1]);
+        self.camera.driver_mut::<Position>().translate(move_vec * dt * 10.0);
+        self.camera.update(dt);
+    }
     pub fn debug_ray_direction(&mut self, encoder: &mut Encoder, to_screen: &ResourceHandle) {
         encoder
             .dispatch_pipeline(
                 &mut self.debug_ray_direction,
                 (div_ceil(encoder.width(), 32), div_ceil(encoder.height(), 32), 1),
                 &[0; 0],
-                &[&self.primary_ray_data, &to_screen],
+                &[&self.primary_ray_data, to_screen],
             )
             .unwrap();
     }

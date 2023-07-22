@@ -1,6 +1,6 @@
-use crate::camera::Camera;
-use crate::primary_ray_caster::PrimaryRayCaster;
+use crate::compute_passes::ComputePass;
 use crate::smol_voxel_world::TextureFormat::Rgba32Float;
+use crate::{compute_passes::Camera, compute_passes::PrimaryRayCaster};
 use anyhow::Result;
 use cogrrs::wgpu::TextureFormat;
 use cogrrs::winit::event::VirtualKeyCode;
@@ -42,10 +42,10 @@ impl Game for SmolVoxelWorld {
     fn on_render(&mut self, gpu: &mut CoGr, input: &Input, dt: f32) -> Result<()> {
         let mut encoder = gpu.get_encoder_for_draw()?;
         if input.key_pressed(VirtualKeyCode::X) {
-            self.camera.update(dt, input);
+            self.camera.update(input, dt);
         }
-        let primary_ray_gen_results = self.camera.generate_rays(&mut encoder, dt);
-        let primary_ray_cast_results = self.primary_ray_caster.shoot_rays(&mut encoder, &primary_ray_gen_results);
+        let primary_ray_gen_results = self.camera.dispatch(&mut encoder, &());
+        let _primary_ray_cast_results = self.primary_ray_caster.dispatch(&mut encoder, &primary_ray_gen_results);
 
         match self.render_mode {
             RenderMode::Complexity => self.primary_ray_caster.debug_complexity(&mut encoder, &self.to_screen),
@@ -60,17 +60,7 @@ impl Game for SmolVoxelWorld {
             puffin::profile_function!();
             egui::Window::new("debug").show(ctx, |ui| {
                 ui.label(format!("fps: {}", 1f32 / dt));
-                egui::ComboBox::from_label("Render mode")
-                    .selected_text(format!("{:?}", self.render_mode))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.render_mode, RenderMode::Complexity, format!("{:?}", RenderMode::Complexity));
-                        ui.selectable_value(&mut self.render_mode, RenderMode::Depth, format!("{:?}", RenderMode::Depth));
-                        ui.selectable_value(&mut self.render_mode, RenderMode::Normals, format!("{:?}", RenderMode::Normals));
-                        ui.selectable_value(&mut self.render_mode, RenderMode::RayDirection, format!("{:?}", RenderMode::RayDirection));
-                    });
-                ui.add(egui::Slider::new(&mut self.camera.aperture, 2.8..=220.0).text("Aperture"));
-                ui.add(egui::Slider::new(&mut self.camera.focal_length, 1.7..=5.0).text("Focal length"));
-                ui.add(egui::Slider::new(&mut self.camera.sensor_height, 0.0..=10.0).text("Sensor height"));
+                self.camera.draw_ui(ui);
             });
         })?;
         Ok(())

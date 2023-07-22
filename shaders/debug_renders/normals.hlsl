@@ -1,4 +1,4 @@
-#include "../common.hlsl"
+#include "../common/random.hlsl"
 
 RWTexture2D<snorm float4> g_normals;
 RWTexture2D<unorm float4> screen_texture;

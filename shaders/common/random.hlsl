@@ -1,3 +1,5 @@
+#pragma once
+
 // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
 uint random_uint(inout uint state) {
   	uint x = state;
