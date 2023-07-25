@@ -58,7 +58,7 @@ impl ComputePass for Camera {
         let camera: CameraRig = CameraRig::builder()
             .with(YawPitch::new().yaw_degrees(45.0).pitch_degrees(-30.0))
             .with(Position::new(Vec3::Y))
-            .with(Smooth::new_position_rotation(1.0, 1.0))
+            .with(Smooth::new_position_rotation(0.5, 0.5))
             .build();
         let primary_ray_data = gpu.texture("primary_ray_direction", FullRes, TextureFormat::Rgba32Float);
         let camera_data = gpu.buffer("camera_data", 1, size_of::<CameraGpu>());
@@ -71,7 +71,7 @@ impl ComputePass for Camera {
             camera_data,
             generate_rays,
             debug_ray_direction,
-            aperture: 2.8,
+            aperture: 1000f32,
             focal_length: 1.7,
             sensor_height: 1.57f32,
         }
@@ -115,7 +115,7 @@ impl ComputePass for Camera {
     }
 
     fn draw_ui(&mut self, ui: &mut Ui) {
-        ui.add(Slider::new(&mut self.aperture, 2.8..=220.0).text("Aperture"));
+        ui.add(Slider::new(&mut self.aperture, 2.8..=1000.0).text("Aperture"));
         ui.add(Slider::new(&mut self.focal_length, 1.7..=5.0).text("Focal length"));
         ui.add(Slider::new(&mut self.sensor_height, 0.0..=10.0).text("Sensor height"));
     }

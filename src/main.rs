@@ -4,8 +4,10 @@ use smol_voxel_world::SmolVoxelWorld;
 mod compute_passes;
 mod constants;
 mod helpers;
+mod io;
 mod key_mapping;
 mod smol_voxel_world;
+mod world;
 
 pub fn setup_logger() -> Result<(), fern::InitError> {
     fern::Dispatch::new()

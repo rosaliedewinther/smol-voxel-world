@@ -12,5 +12,10 @@ fern = "0.6"
 chrono = "0.4"
 cogrrs = { path = "../CoGrRs" }
 anyhow = "1.0"
-glam = { version = "0.24", features = ["bytemuck"] }
+glam = { version = "0.24", features = ["bytemuck", "serde"] }
 bytemuck = "1.13"
+lz4_flex = { version = "0.11" }
+bvh = { version = "0.7" }
+tobj = { version = "4.0" }
+serde = "1.0"
+serde_cbor = { version = "0.11" }
